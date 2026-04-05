@@ -1,0 +1,15 @@
+*** Using Compiler 'V5.06 update 5 (build 528)', folder: 'D:\keil5\ARM\ARMCC\Bin'
+Build target 'ZET6_BT'
+compiling MY_USART.c...
+..\SYSTEM\MY_USART.h(13): warning:  #1-D: last line of file ends without a newline
+  #endif
+..\SYSTEM\MY_USART.c(28): error:  #20: identifier "hdma_usart1_rx" is undefined
+      
+_HAL_DMA_ENABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
+..\SYSTEM\MY_USART.c(30): warning:  #167-D: argument of type "volatile uint8_t *" is incompatible with parameter of type "uint8_t *"
+      HAL_UARTEx_ReceiveToIdle_DMA(&huart1, dma_rx_buf, 
+MA_BUF_SIZE);  
+..\SYSTEM\MY_USART.c: 2 warnings, 1 error
+"ZET6_BT\ZET6_BT.axf" - 1 Error(s), 2 Warning(s).
+Target not created.
+Build Time Elapsed:  00:00:01
