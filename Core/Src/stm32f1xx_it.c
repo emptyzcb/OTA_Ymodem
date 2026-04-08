@@ -23,7 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "MY_USART.h"
-#include "cmsis_armcc.h"  // »òÕß "cmsis_armcc.h"£¬È¡¾öÓÚÄãµÄ±àÒëÆ÷
+#include "cmsis_armcc.h"  // ï¿½ï¿½ï¿½ï¿½ "cmsis_armcc.h"ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä±ï¿½ï¿½ï¿½ï¿½ï¿½
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -87,23 +87,23 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-    // Ö±½ÓÓÃÖ÷Õ» MSP£¨99% Âã»ú¹¤³Ì¶¼ÊÇÖ÷Õ»£©
+    // Ö±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õ» MSPï¿½ï¿½99% ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¶ï¿½ï¿½ï¿½ï¿½ï¿½Õ»ï¿½ï¿½
     uint32_t* stack_ptr;
     
-    // ×î¼òµ¥µÄ»ã±à£¬¼æÈÝËùÓÐ Keil °æ±¾
+    // ï¿½ï¿½òµ¥µÄ»ï¿½à£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Keil ï¿½æ±¾
     __asm
     {
         MRS stack_ptr, MSP
     }
 
-    // Ö±½Ó½âÎöÕ»Ö¡
+    // Ö±ï¿½Ó½ï¿½ï¿½ï¿½Õ»Ö¡
     uint32_t r0  = stack_ptr[0];
     uint32_t r1  = stack_ptr[1];
     uint32_t r2  = stack_ptr[2];
     uint32_t r3  = stack_ptr[3];
     uint32_t r12 = stack_ptr[4];
-    uint32_t lr  = stack_ptr[5];   // ÉÏÒ»²ãº¯Êýµ÷ÓÃ
-    uint32_t pc  = stack_ptr[6];   // ¡¾¹Ø¼ü¡¿ËÀ»ú´úÂëµØÖ·
+    uint32_t lr  = stack_ptr[5];   // ï¿½ï¿½Ò»ï¿½ãº¯ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    uint32_t pc  = stack_ptr[6];   // ï¿½ï¿½ï¿½Ø¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö·
     uint32_t psr = stack_ptr[7];
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
@@ -251,6 +251,6 @@ void USART1_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
-// ÕæÕý½âÎöËÀ»úÐÅÏ¢µÄCº¯Êý
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½Cï¿½ï¿½ï¿½ï¿½
 
 /* USER CODE END 1 */
