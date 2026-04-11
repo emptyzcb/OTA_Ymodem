@@ -37,15 +37,16 @@ typedef struct {
 #define IDLE_FLAG              0x00// 空闲状态
 #define START_UPGRADE_FLAG     0x01// 刚开始升级
 #define FIRMWARE_BURNED_FLAG   0x02// 完成固件烧录
-#define CHECK_DONE_FLAG        0x03// 完成检查
 
-#define APP_ADDR_A      0x08002000// A 区起始地址
-#define APP_ADDR_B      0x08006000// B 区起始地址
+volatile uint8_t upgrade_flag_Ymodem = 0;
+
+#define APP_ADDR_A      0x08004000// A 区起始地址
+#define APP_ADDR_B      0x08008000// B 区起始地址
 
 #define PARTITION_A     0// A 区
 #define PARTITION_B     1// B 区
 //标志位区宏定义
-define  FLAG_ADDRESS    0x0800F000// 标志位存储地址，位于最后一个扇区
+#define  FLAG_ADDRESS    0x0800F000// 标志位存储地址，位于最后一个扇区
 
 #define KEY1_GPIO_PORT    GPIOE
 #define KEY1_GPIO_PIN     GPIO_PIN_3
@@ -71,12 +72,17 @@ void SystemClock_Config(void);
 uint8_t KEY1_Scan(void);
 void JumpToApp(uint32_t appBase);
 void read_upgrade_flag(upgrade_flag_t *upgrade_flag);
+
+
+void Update_flag_states(uint8_t status);
+void Update_flag_partition(uint8_t partition);
+uint8_t Flash_CheckData(uint32_t addr);
 //static void OTA_PrintResult(int code);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-upgrade_flag_t upgrade_flag;
+upgrade_flag_t upgrade_flag={0xA5,0xA5};
 /* USER CODE END 0 */
 
 /**
@@ -113,6 +119,17 @@ int main(void)
   /* USER CODE BEGIN 2 */
   Init_USART();
     
+//------------------------------------查看是否是新设备-------------------------
+  if (0x00 == Flash_CheckData(FLAG_ADDRESS + offsetof(upgrade_flag_t, active_partition))
+      && 0x00 == Flash_CheckData(FLAG_ADDRESS + offsetof(upgrade_flag_t, upgrade_status)))
+  {
+
+      Update_flag_partition(PARTITION_B);//AB区都没有，先认为B区有，让更新到A区去
+      Update_flag_states(START_UPGRADE_FLAG);
+      
+  }//NO APP
+//---------------------------------------------------------------------------
+
   //查看当前APP运行位置
   read_upgrade_flag(&upgrade_flag);
   printf("Current active partition: %s\r\n", (upgrade_flag.active_partition == PARTITION_A) ? "A" : "B");
@@ -123,25 +140,6 @@ int main(void)
   switch(upgrade_flag.upgrade_status)
   {
       case IDLE_FLAG:
-          //什么都不做，继续后续升级判断流程
-          break;
-      case START_UPGRADE_FLAG:
-            //如果上次刚开始升级，说明还未完成固件烧录，继续进入升级流程
-          break;
-      case FIRMWARE_BURNED_FLAG:
-          //如果上次只是完成固件下载升级未完成，则进入升级检查流程，校验固件是否正确
-          break;
-      case CHECK_DONE_FLAG:
-          //如果上次升级完成但未跳转，直接跳转到APP区
-          // 根据分区号选择地址
-          uint32_t app_addr = (upgrade_flag.active_partition == PARTITION_A) ? APP_ADDR_A : APP_ADDR_B;
-          JumpToApp(app_addr);
-          break;
-  }
-
-//------------------------------------------------------------------------------
-    
-
 //----------------------------------按键模拟版本检查--------------------------------
     printf("Please press the KEY1 button within 2 seconds to enter OTA mode.\r\n");
     uint32_t previous_time = HAL_GetTick();//获取当前时钟 
@@ -149,10 +147,10 @@ int main(void)
     {
         if (HAL_GetTick() - previous_time <= 2000 && KEY1_Scan()) 
         {
+            upgrade_flag_Ymodem=1;
             //跳转到OTA模式
             //将信息直接写道标志位区，APP区的代码会根据这个标志位来决定是否进入升级流程
-            upgrade_flag.upgrade_status = FIRMWARE_BURNED_FLAG;
-            my_flash_write(FLAG_ADDRESS+offsetof(upgrade_flag_t, upgrade_status), (uint8_t *)&upgrade_flag.upgrade_status, sizeof(upgrade_flag.upgrade_status)); // 将升级状态写回 Flash
+            Update_flag_states(START_UPGRADE_FLAG);
             break;
         }
         if(HAL_GetTick() - previous_time > 2000)
@@ -162,34 +160,52 @@ int main(void)
         }
     }
 //----------------------------------按键模拟版本检查 end --------------------------------
+          break;
+      case START_UPGRADE_FLAG:
+            printf("Start fetching the new version again");
+            upgrade_flag_Ymodem=1;
+            //如果上次刚开始升级，说明还未完成固件烧录，继续进入升级流程
+          break;
+      case FIRMWARE_BURNED_FLAG:
+          //回滚:返回上一版本，并尝试再此获取新版本
+            printf("Roll back to the previous version");
+            Update_flag_partition((upgrade_flag.active_partition == PARTITION_A) ? PARTITION_B : PARTITION_A);
+            Update_flag_states(START_UPGRADE_FLAG);
+            upgrade_flag_Ymodem=1;
+          //如果上次只是完成固件下载升级未完成，则进入升级检查流程，校验固件是否正确
+          break;
+  }
+//------------------------------------------------------------------------------
+
+if(upgrade_flag_Ymodem==1)
+{
+  upgrade_flag_Ymodem=0;
+//-------------------------------接收新固件----------------------------------
     printf("\r\n\r\n*** STM32 Ymodem OTA ***\r\n");
     printf("UART1 %lu baud | DMA circular RX | IDLE + HT/TC -> FIFO\r\n", (unsigned long)huart1.Init.BaudRate);
     printf("Target Flash: %08lX\r\n", (upgrade_flag.active_partition == PARTITION_A) ? APP_ADDR_A : APP_ADDR_B);
     printf("Send firmware (Ymodem-1K CRC)...\r\n");
 
-    int ret = MY_ymodem_ReceiveBinToFlash(upgrade_flag.active_partition==PARTITION_A ? PARTITION_B : PARTITION_A);
+    int ret = MY_ymodem_ReceiveBinToFlash((upgrade_flag.active_partition == PARTITION_A) ? APP_ADDR_B : APP_ADDR_A);
     if (ret==OTA_OK)
     {
-      upgrade_flag.upgrade_status = FIRMWARE_BURNED_FLAG;
-      my_flash_write(FLAG_ADDRESS + offsetof(upgrade_flag_t, upgrade_status), (uint8_t *)&upgrade_flag.upgrade_status, sizeof(upgrade_flag.upgrade_status)); // 将升级状态写回 Flash
-      
+      //烧录完成，更新分区
+      Update_flag_partition((upgrade_flag.active_partition == PARTITION_A) ? PARTITION_B : PARTITION_A);
+      Update_flag_states(FIRMWARE_BURNED_FLAG);//完成固件烧录
       printf("Upgrade complete.\r\n");
-      //校验新固件是否正确（可选，视具体需求而定）
-      //。。。
-      upgrade_flag.upgrade_status = CHECK_DONE_FLAG;
-      my_flash_write(FLAG_ADDRESS + offsetof(upgrade_flag_t, upgrade_status), (uint8_t *)&upgrade_flag.upgrade_status, sizeof(upgrade_flag.upgrade_status)); // 将升级状态写回 Flash
 
-      upgrade_flag.active_partition = upgrade_flag.active_partition==PARTITION_A ? PARTITION_B : PARTITION_A;
-      my_flash_write(FLAG_ADDRESS + offsetof(upgrade_flag_t, active_partition), (uint8_t *)&upgrade_flag.active_partition, sizeof(upgrade_flag.active_partition)); // 将升级状态写回 Flash
-
-      if(upgrade_flag.upgrade_status == CHECK_DONE_FLAG)
+      if(upgrade_flag.upgrade_status == FIRMWARE_BURNED_FLAG)
       {
           //跳转到APP区
           // 根据分区号选择地址
           uint32_t app_addr = (upgrade_flag.active_partition == PARTITION_A) ? APP_ADDR_A : APP_ADDR_B;
-          JumpToApp(app_addr);
+          JumpToApp(app_addr);//跳转到APP运行  如果APP在运行的中期能将标志位改为空闲（IDLE_FLAG），则认为代码能正常运行
       }
     }
+//-------------------------------接收新固件end----------------------------------
+}
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -197,7 +213,8 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+      HAL_Delay(500);
+      printf("while(1)！！！！！！\r\n");
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -260,7 +277,17 @@ uint8_t KEY1_Scan(void)
 }
 
 
+void Update_flag_states(uint8_t status)
+{
+  upgrade_flag.upgrade_status = status;
+  my_flash_write(FLAG_ADDRESS + offsetof(upgrade_flag_t, upgrade_status), (uint8_t *)&upgrade_flag.upgrade_status, sizeof(upgrade_flag.upgrade_status));
+}
 
+void Update_flag_partition(uint8_t partition)
+{
+  upgrade_flag.active_partition = partition;
+  my_flash_write(FLAG_ADDRESS + offsetof(upgrade_flag_t, active_partition), (uint8_t *)&upgrade_flag.active_partition, sizeof(upgrade_flag.active_partition));
+}
 
 
 /**
@@ -302,6 +329,29 @@ void all_gpio_init_default(void)
     __HAL_RCC_GPIOF_CLK_DISABLE();
     __HAL_RCC_GPIOG_CLK_DISABLE();
 }
+
+
+/**
+  * @brief  检查Flash指定地址是否存在有效数据（空=0xFFFFFFFF）
+  * @param  addr: 要检查的Flash地址
+  * @retval 0: 无数据（空）  1: 有数据
+  */
+uint8_t Flash_CheckData(uint32_t addr)
+{
+    // 读取32位数据（STM32 Flash 按字读取最稳定）
+    uint32_t data = *(uint32_t *)addr;
+
+    // 空Flash = 0xFFFFFFFF → 无数据
+    if(data == 0xFFFFFFFF)
+    {
+        return 0;  // 无数据
+    }
+    else
+    {
+        return 1;  // 有数据
+    }
+}
+
 
 
 typedef void (*pFunc)(void);

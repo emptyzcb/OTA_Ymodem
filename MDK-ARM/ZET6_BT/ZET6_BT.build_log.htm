@@ -21,19 +21,26 @@ Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V3.0.1.0
 Dialog DLL:      TCM.DLL V1.32.0.0
  
 <h2>Project:</h2>
-D:\OneDrive\×ÀÃæ\GitHub\Ymodem\MDK-ARM\ZET6_BT.uvprojx
+D:\OneDrive\×ÀÃæ\OTA_Ymodem\OTA_BT\MDK-ARM\ZET6_BT.uvprojx
 Project File Date:  04/08/2026
 
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 5 (build 528)', folder: 'D:\keil5\ARM\ARMCC\Bin'
 Build target 'ZET6_BT'
 compiling main.c...
-../Core/Src/main.c(132): error:  #44: expression must have pointer type
-              JumpToApp(upgrade_flag->);
-../Core/Src/main.c(132): error:  #134: expected a field name
-              JumpToApp(upgrade_flag->);
-../Core/Src/main.c: 0 warnings, 2 errors
-"ZET6_BT\ZET6_BT.axf" - 2 Error(s), 0 Warning(s).
+../Core/Src/main.c(140): warning:  #546-D: transfer of control bypasses initialization of:
+            variable "previous_time"  (declared at line 145)
+    switch(upgrade_flag.upgrade_status)
+    ^
+../Core/Src/main.c(283): warning:  #223-D: function "my_flash_write" declared implicitly
+    my_flash_write(FLAG_ADDRESS + offsetof(upgrade_flag_t, upgrade_status), (uint8_t *)&upgrade_flag.upgrade_status, sizeof(upgrade_flag.upgrade_status));
+../Core/Src/main.c(289): warning:  #223-D: function "my_flash_write" declared implicitly
+    my_flash_write(FLAG_ADDRESS + offsetof(upgrade_flag_t, active_partition), (uint8_t *)&upgrade_flag.active_partition, sizeof(upgrade_flag.active_partition));
+../Core/Src/main.c: 3 warnings, 0 errors
+linking...
+Program Size: Code=11088 RO-data=464 RW-data=32 ZI-data=9408  
+FromELF: creating hex file...
+"ZET6_BT\ZET6_BT.axf" - 0 Error(s), 3 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -56,8 +63,7 @@ Package Vendor: Keil
 <h2>Collection of Component Files used:</h2>
 
    * Component: ARM::CMSIS:CORE:5.0.1
-Target not created.
-Build Time Elapsed:  00:00:01
+Build Time Elapsed:  00:00:05
 </pre>
 </body>
 </html>
